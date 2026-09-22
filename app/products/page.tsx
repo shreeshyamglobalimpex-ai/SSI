@@ -1,15 +1,14 @@
-import type { Metadata } from "next";
 import { PageHero } from "@/components/shared/page-hero";
 import { SectionHeading } from "@/components/shared/section-heading";
+import { pageMetadata } from "@/lib/seo";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 
-export const metadata: Metadata = {
-  title: "Products",
-  description:
-    "Explore pharmaceutical product categories and submit an international sourcing inquiry.",
-  alternates: { canonical: "/products" },
-};
+export const metadata = pageMetadata(
+  "Pharmaceutical Products & Sourcing",
+  "Explore generic and branded pharmaceutical products, chronic care medicines, acute care solutions, and sourcing support from Shree Shyam International.",
+  "/products",
+);
 
 const categories = [
   [

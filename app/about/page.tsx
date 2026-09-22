@@ -1,14 +1,13 @@
-import type { Metadata } from "next";
 import { PageHero } from "@/components/shared/page-hero";
 import { SectionHeading } from "@/components/shared/section-heading";
+import { pageMetadata } from "@/lib/seo";
 import { company } from "@/services/company.service";
 
-export const metadata: Metadata = {
-  title: "About Us",
-  description:
-    "Learn about Shree Shyam International, an India-based pharmaceutical export and wholesale business.",
-  alternates: { canonical: "/about" },
-};
+export const metadata = pageMetadata(
+  "About Shree Shyam International",
+  "Learn about Shree Shyam International, an India-based pharmaceutical exporter and wholesaler serving global markets from Nagpur, Maharashtra.",
+  "/about",
+);
 
 export default function AboutPage() {
   return (

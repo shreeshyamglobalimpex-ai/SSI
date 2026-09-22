@@ -1,12 +1,11 @@
-import type { Metadata } from "next";
 import { PageHero } from "@/components/shared/page-hero";
+import { pageMetadata } from "@/lib/seo";
 
-export const metadata: Metadata = {
-  title: "FAQ",
-  description:
-    "Frequently asked questions about Shree Shyam International's pharmaceutical export business.",
-  alternates: { canonical: "/faq" },
-};
+export const metadata = pageMetadata(
+  "Pharmaceutical Export FAQ",
+  "Find answers about pharmaceutical export, generic and branded medicine supply, importing requirements, and how to contact Shree Shyam International.",
+  "/faq",
+);
 
 const faqs = [
   [

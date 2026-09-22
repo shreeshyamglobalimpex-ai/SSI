@@ -1,10 +1,11 @@
-import type { Metadata } from "next";
 import { PageHero } from "@/components/shared/page-hero";
-export const metadata: Metadata = {
-  title: "Shipping & Export Policy",
-  description: "Shipping and export information for Shree Shyam International.",
-  alternates: { canonical: "/shipping-policy" },
-};
+import { pageMetadata } from "@/lib/seo";
+
+export const metadata = pageMetadata(
+  "Shipping & Export Policy",
+  "Read the international pharmaceutical shipping and export policy for Shree Shyam International, including destination requirements and logistics considerations.",
+  "/shipping-policy",
+);
 export default function Shipping() {
   return (
     <>

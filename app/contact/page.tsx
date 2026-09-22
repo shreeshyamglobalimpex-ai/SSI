@@ -1,15 +1,14 @@
-import type { Metadata } from "next";
 import { PageHero } from "@/components/shared/page-hero";
 import { ContactForm } from "@/components/forms/contact-form";
 import { InquiryForm } from "@/components/forms/inquiry-form";
+import { pageMetadata } from "@/lib/seo";
 import { company } from "@/services/company.service";
 
-export const metadata: Metadata = {
-  title: "Contact & Business Inquiry",
-  description:
-    "Contact Shree Shyam International for pharmaceutical product and export inquiries.",
-  alternates: { canonical: "/contact" },
-};
+export const metadata = pageMetadata(
+  "Contact Shree Shyam International",
+  "Request a pharmaceutical export quotation or business inquiry with Shree Shyam International from Nagpur, India.",
+  "/contact",
+);
 
 export default function ContactPage() {
   return (

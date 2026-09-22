@@ -1,5 +1,5 @@
-import type { Metadata } from "next";
 import { PageHero } from "@/components/shared/page-hero";
+import { pageMetadata } from "@/lib/seo";
 import { brands } from "@/services/company.service";
 import type { Brand } from "@/types/company";
 import {
@@ -8,12 +8,11 @@ import {
   ExternalLink,
 } from "lucide-react";
 
-export const metadata: Metadata = {
-  title: "Brands",
-  description:
-    "Pharmaceutical brands listed in Shree Shyam International's business portfolio.",
-  alternates: { canonical: "/brands" },
-};
+export const metadata = pageMetadata(
+  "Pharmaceutical Brands Portfolio",
+  "Explore pharmaceutical brands and healthcare products offered through Shree Shyam International's export and wholesale network.",
+  "/brands",
+);
 
 const groupedBrands = brands.reduce<Record<string, Brand[]>>(
   (groups, brand) => {

@@ -1,12 +1,12 @@
-import type { Metadata } from "next";
 import { PageHero } from "@/components/shared/page-hero";
+import { pageMetadata } from "@/lib/seo";
 import { markets } from "@/services/company.service";
 
-export const metadata: Metadata = {
-  title: "Global Markets",
-  description: "International markets listed by Shree Shyam International.",
-  alternates: { canonical: "/markets" },
-};
+export const metadata = pageMetadata(
+  "Global Pharmaceutical Markets",
+  "Discover the international markets served by Shree Shyam International across Asia, Europe, the Middle East, Africa, and the Americas.",
+  "/markets",
+);
 
 export default function MarketsPage() {
   const groups = Array.from(new Set(markets.map((m) => m.region)));
