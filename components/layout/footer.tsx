@@ -85,9 +85,19 @@ export function Footer() {
         </div>
       </div>
       <div className="border-t border-white/10">
-        <div className="mx-auto max-w-7xl px-5 py-5 text-xs text-slate-500 lg:px-8">
-          © {new Date().getFullYear()} Shree Shyam International. All rights
-          reserved.
+        <div className="mx-auto flex max-w-7xl flex-col items-center gap-2 px-5 py-5 text-center text-xs text-slate-500 lg:px-8">
+          <div>
+            © {new Date().getFullYear()} Shree Shyam International. All rights
+            reserved.
+          </div>
+          <Link
+            href="https://luvantazsolutions.com/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="transition-colors hover:text-white"
+          >
+            Made by Luvantaz Solutions
+          </Link>
         </div>
       </div>
     </footer>
