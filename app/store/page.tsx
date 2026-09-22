@@ -1,14 +1,13 @@
-import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowRight, ShoppingBag } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { pageMetadata } from "@/lib/seo";
 
-export const metadata: Metadata = {
-  title: "Store — Coming Soon",
-  description:
-    "The Shree Shyam International online pharmaceutical catalogue is coming soon.",
-  alternates: { canonical: "/store" },
-};
+export const metadata = pageMetadata(
+  "Pharmaceutical Store Coming Soon",
+  "Shree Shyam International is preparing an online pharmaceutical catalogue for international buyers. Contact us for current product sourcing and export inquiries.",
+  "/store",
+);
 
 export default function StorePage() {
   return (

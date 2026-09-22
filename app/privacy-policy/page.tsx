@@ -1,10 +1,11 @@
-import type { Metadata } from "next";
 import { PageHero } from "@/components/shared/page-hero";
-export const metadata: Metadata = {
-  title: "Privacy Policy",
-  description: "Privacy policy for Shree Shyam International.",
-  alternates: { canonical: "/privacy-policy" },
-};
+import { pageMetadata } from "@/lib/seo";
+
+export const metadata = pageMetadata(
+  "Privacy Policy",
+  "Read the privacy policy for Shree Shyam International, including how contact and inquiry information is handled on this website.",
+  "/privacy-policy",
+);
 export default function Privacy() {
   return (
     <>

@@ -1,10 +1,11 @@
-import type { Metadata } from "next";
 import { PageHero } from "@/components/shared/page-hero";
-export const metadata: Metadata = {
-  title: "Terms & Conditions",
-  description: "Website terms and conditions for Shree Shyam International.",
-  alternates: { canonical: "/terms" },
-};
+import { pageMetadata } from "@/lib/seo";
+
+export const metadata = pageMetadata(
+  "Terms & Conditions",
+  "Read the website terms and conditions for Shree Shyam International, including product inquiries, export information, and business communication policies.",
+  "/terms",
+);
 export default function Terms() {
   return (
     <>
