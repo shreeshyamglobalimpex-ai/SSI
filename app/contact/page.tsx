@@ -25,12 +25,21 @@ export default function ContactPage() {
               Business details
             </p>
             <h2 className="mt-4 text-2xl font-semibold">{company.name}</h2>
+            <p className="text-slate-400">
+              India-based pharmaceutical export and wholesale business serving
+              international markets.
+            </p>
             <p className="mt-5 text-sm leading-7 text-slate-300">
               {company.registeredAddress}
             </p>
             <div className="mt-7 border-t border-white/10 pt-6 text-sm">
               <p className="text-slate-400">CEO</p>
               <p className="mt-1">{company.ceo}</p>
+            </div>
+            <div className="mt-5 text-sm">
+              <p className="text-slate-400">Contact</p>
+              <p className="mt-1">+91 83080 00293</p>
+              <p className="mt-1">kaustubh.borkar@shreeshyamintimpex.com</p>
             </div>
             <div className="mt-5 text-sm">
               <p className="text-slate-400">GST</p>

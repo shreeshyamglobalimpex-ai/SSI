@@ -5,7 +5,7 @@ import Link from "next/link";
 export function Footer() {
   return (
     <footer className="border-t border-slate-200 bg-slate-950 text-slate-300">
-      <div className="mx-auto grid max-w-7xl gap-10 px-5 py-14 md:grid-cols-4 lg:px-8">
+      <div className="mx-auto grid max-w-7xl gap-10 px-5 py-14 md:grid-cols-3 lg:px-8">
         <div className="md:col-span-2">
           <div className="mb-4 flex items-center gap-3">
             <Image
@@ -30,17 +30,21 @@ export function Footer() {
             </p>
             <Link
               className="flex gap-2 transition-colors hover:text-white"
-              href="mailto:kaustubh.b@shreeshyamintimpex.com"
+              href="mailto:kaustubh.borkar@shreeshyamintimpex.com"
             >
               <Mail className="size-4 shrink-0" />
-              <span className="break-all">kaustubh.b@shreeshyamintimpex.com</span>
+              <span className="break-all">
+                kaustubh.borkar@shreeshyamintimpex.com
+              </span>
             </Link>
             <Link
               className="flex gap-2 transition-colors hover:text-white"
               href="mailto:shreeshyam.global.impex@gmail.com"
             >
               <Mail className="size-4 shrink-0" />
-              <span className="break-all">shreeshyam.global.impex@gmail.com</span>
+              <span className="break-all">
+                shreeshyam.global.impex@gmail.com
+              </span>
             </Link>
             <Link
               className="flex gap-2 transition-colors hover:text-emerald-400"
@@ -53,34 +57,36 @@ export function Footer() {
             </Link>
           </div>
         </div>
-        <div>
-          <h3 className="mb-4 text-sm font-semibold text-white">Explore</h3>
-          <div className="space-y-3 text-sm">
-            {["Products", "Brands", "Markets", "About", "FAQ", "Store"].map(
-              (x) => (
-                <Link
-                  className="block hover:text-white"
-                  href={`/${x.toLowerCase()}`}
-                  key={x}
-                >
+        <div className="grid grid-cols-2 gap-10 md:grid-cols-2">
+          <div>
+            <h3 className="mb-4 text-sm font-semibold text-white">Explore</h3>
+            <div className="space-y-3 text-sm">
+              {["Products", "Brands", "Markets", "About", "FAQ", "Store"].map(
+                (x) => (
+                  <Link
+                    className="block hover:text-white"
+                    href={`/${x.toLowerCase()}`}
+                    key={x}
+                  >
+                    {x}
+                  </Link>
+                ),
+              )}
+            </div>
+          </div>
+          <div>
+            <h3 className="mb-4 text-sm font-semibold text-white">Legal</h3>
+            <div className="space-y-3 text-sm">
+              {[
+                ["Privacy Policy", "/privacy-policy"],
+                ["Terms & Conditions", "/terms"],
+                ["Shipping Policy", "/shipping-policy"],
+              ].map(([x, h]) => (
+                <Link className="block hover:text-white" href={h ?? ""} key={h}>
                   {x}
                 </Link>
-              ),
-            )}
-          </div>
-        </div>
-        <div>
-          <h3 className="mb-4 text-sm font-semibold text-white">Legal</h3>
-          <div className="space-y-3 text-sm">
-            {[
-              ["Privacy Policy", "/privacy-policy"],
-              ["Terms & Conditions", "/terms"],
-              ["Shipping Policy", "/shipping-policy"],
-            ].map(([x, h]) => (
-              <Link className="block hover:text-white" href={h ?? ""} key={h}>
-                {x}
-              </Link>
-            ))}
+              ))}
+            </div>
           </div>
         </div>
       </div>
