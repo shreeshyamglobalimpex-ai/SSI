@@ -63,13 +63,18 @@ export function InquiryForm() {
         <Field label="Country" error={errors.country?.message}>
           <Input {...register("country")} />
         </Field>
-        <Field label="Product / medicine">
-          <Input {...register("product")} />
+        <Field label="Product / medicine" error={errors.productName?.message}>
+          <Input {...register("productName")} />
         </Field>
       </div>
-      <Field label="Quantity / requirement">
-        <Input {...register("quantity")} />
-      </Field>
+      <div className="grid gap-5 sm:grid-cols-2">
+        <Field label="Quantity / requirement">
+          <Input {...register("quantity")} />
+        </Field>
+        <Field label="Delivery location" error={errors.deliveryLocation?.message}>
+          <Input {...register("deliveryLocation")} />
+        </Field>
+      </div>
       <Field label="Message" error={errors.message?.message}>
         <Textarea
           {...register("message")}
