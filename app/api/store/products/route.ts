@@ -11,7 +11,7 @@ export async function GET(req: Request) {
     const q = (u.searchParams.get('q') || '').trim().slice(0, 120);
     const category = (u.searchParams.get('category') || '').trim().slice(0, 100);
     const page = parseBoundedInt(u.searchParams.get('page'), 1, 1, 1000);
-    const pageSize = parseBoundedInt(u.searchParams.get('pageSize'), 12, 1, 48);
+    const pageSize = parseBoundedInt(u.searchParams.get('pageSize'), 12, 1, 96);
 
     const where: Prisma.ProductWhereInput = {
       active: true,
@@ -34,8 +34,13 @@ export async function GET(req: Request) {
           name: true,
           slug: true,
           description: true,
+          sku: true,
+          manufacturer: true,
+          ingredient: true,
+          packSizes: true,
           stock: true,
-          price: true,
+          priceInr: true,
+          priceUsd: true,
           category: { select: { id: true, name: true, slug: true } },
           images: { select: { id: true }, orderBy: { createdAt: 'desc' }, take: 1 },
         },

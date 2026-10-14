@@ -16,6 +16,7 @@ import {
   Store,
   X,
 } from "lucide-react";
+import { NotificationBell } from "./notification-bell";
 
 const nav = [
   { label: "Dashboard", href: "/admin", icon: LayoutDashboard },
@@ -83,23 +84,26 @@ function SidebarFooter() {
 
 function Brand() {
   return (
-    <Link href="/admin" className="flex items-center gap-3 px-5 py-6">
-      <Image
-        src="/logo.webp"
-        alt="Shree Shyam International"
-        height={40}
-        width={40}
-        className="size-9 rounded-lg border border-slate-100 object-cover shadow-sm"
-      />
-      <span className="leading-tight">
-        <span className="block text-sm font-bold tracking-tight text-slate-900">
-          Shree Shyam
+    <div className="flex items-center justify-between gap-2 px-5 py-6">
+      <Link href="/admin" className="flex items-center gap-3">
+        <Image
+          src="/logo.webp"
+          alt="Shree Shyam International"
+          height={40}
+          width={40}
+          className="size-9 rounded-lg border border-slate-100 object-cover shadow-sm"
+        />
+        <span className="leading-tight">
+          <span className="block text-sm font-bold tracking-tight text-slate-900">
+            Shree Shyam
+          </span>
+          <span className="block text-[10px] font-semibold uppercase tracking-[0.18em] text-emerald-700">
+            Admin panel
+          </span>
         </span>
-        <span className="block text-[10px] font-semibold uppercase tracking-[0.18em] text-emerald-700">
-          Admin panel
-        </span>
-      </span>
-    </Link>
+      </Link>
+      <NotificationBell />
+    </div>
   );
 }
 
@@ -133,13 +137,16 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
             SSI Admin
           </span>
         </Link>
-        <button
-          onClick={() => setOpen(true)}
-          aria-label="Open menu"
-          className="grid size-10 place-items-center rounded-xl border border-slate-200 text-slate-600"
-        >
-          <Menu className="size-5" />
-        </button>
+        <div className="flex items-center gap-2">
+          <NotificationBell />
+          <button
+            onClick={() => setOpen(true)}
+            aria-label="Open menu"
+            className="grid size-10 place-items-center rounded-xl border border-slate-200 text-slate-600"
+          >
+            <Menu className="size-5" />
+          </button>
+        </div>
       </div>
 
       {/* Mobile drawer */}

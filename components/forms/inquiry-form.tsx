@@ -6,36 +6,62 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { useState } from "react";
+import { memo, useCallback, useState } from "react";
 import { toast } from "sonner";
+import { ApiError } from "@/lib/api/client";
+import { inquiryService } from "@/lib/api/services";
+
+/** Pulls the per-field error map off a thrown ApiError, if present. */
+function readFieldErrors(error: unknown): Record<string, string> {
+  if (error instanceof ApiError) {
+    const fields = (error.payload as { fields?: Record<string, string> })
+      ?.fields;
+    if (fields && typeof fields === "object") return fields;
+  }
+  return {};
+}
 
 export function InquiryForm() {
   const [status, setStatus] = useState("");
   const {
     register,
     handleSubmit,
+    setError,
     formState: { errors, isSubmitting },
     reset,
   } = useForm<InquiryInput>({ resolver: zodResolver(inquirySchema) });
-  async function submit(values: InquiryInput) {
-    setStatus("");
-    const r = await fetch("/api/inquiries", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(values),
-    });
-    const d: { success?: boolean; error?: string } = await r.json();
-    if (!r.ok || !d.success) {
-      toast.error(d.error ?? "Unable to submit inquiry.");
-      setStatus(d.error ?? "Unable to submit inquiry.");
-      return;
-    }
-    reset();
-    toast.success("Your inquiry has been submitted successfully.");
-    setStatus(
-      "Inquiry submitted successfully. Our team can review your requirements.",
-    );
-  }
+
+  const submit = useCallback(
+    async (values: InquiryInput) => {
+      setStatus("");
+      try {
+        await inquiryService.submit(values);
+        reset();
+        toast.success("Your inquiry has been submitted successfully.");
+        setStatus(
+          "Inquiry submitted successfully. Our team can review your requirements.",
+        );
+      } catch (error) {
+        // Prefer server field errors (mapped inline) over a generic message.
+        const fields = readFieldErrors(error);
+        const entries = Object.entries(fields);
+        if (entries.length > 0) {
+          for (const [field, message] of entries) {
+            setError(field as keyof InquiryInput, { type: "server", message });
+          }
+          setStatus("Please fix the highlighted fields and try again.");
+        } else {
+          setStatus(
+            error instanceof ApiError
+              ? error.message
+              : "Unable to submit inquiry.",
+          );
+        }
+      }
+    },
+    [reset, setError],
+  );
+
   return (
     <form onSubmit={handleSubmit(submit)} className="space-y-5">
       {status && (
@@ -87,7 +113,8 @@ export function InquiryForm() {
     </form>
   );
 }
-function Field({
+
+const Field = memo(function Field({
   label,
   error,
   children,
@@ -103,4 +130,4 @@ function Field({
       {error && <p className="mt-1 text-xs text-red-600">{error}</p>}
     </div>
   );
-}
+});

@@ -91,13 +91,15 @@ export async function POST(req: Request) {
 
       const category = categories.get(slugify(categoryName))!;
       const slug = slugify(name);
-      const priceText = text(r.price);
+      const priceInrText = text(r.priceInr);
+      const priceUsdText = text(r.priceUsd);
       const data = {
         name,
         categoryId: category.id,
         description: text(r.description),
         sku: text(r.sku) || null,
-        price: priceText ? num(r.price, 0) : null,
+        priceInr: priceInrText ? num(r.priceInr, 0) : null,
+        priceUsd: priceUsdText ? num(r.priceUsd, 0) : null,
         stock: num(r.stock, 0),
         lowStockAt: num(r.lowStockAt, 5),
         active: bool(r.active),

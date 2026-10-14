@@ -13,13 +13,35 @@ const optionalNumber = z
     return Number.isFinite(n) ? n : undefined;
   });
 
+/**
+ * Pack sizes accept either an array of strings (from the admin form) or a
+ * comma/pipe-separated string (from spreadsheet import). Values are trimmed,
+ * de-duplicated and capped so the list stays tidy.
+ */
+const packSizes = z
+  .union([z.array(z.string()), z.string()])
+  .optional()
+  .transform(v => {
+    if (v === undefined || v === null || v === '') return undefined;
+    const raw = Array.isArray(v) ? v : v.split(/[,|]/);
+    const cleaned = raw
+      .map(s => String(s).trim())
+      .filter(Boolean)
+      .slice(0, 30);
+    return cleaned.length ? Array.from(new Set(cleaned)) : undefined;
+  });
+
 export const productCreateSchema = z.object({
   name: z.string().trim().min(2, 'Product name is required.').max(200),
   categoryId: z.string().min(1, 'Category is required.'),
   slug: optionalText(200),
   description: optionalText(5000),
   sku: optionalText(100),
-  price: optionalNumber.pipe(z.number().min(0).optional()),
+  manufacturer: optionalText(200),
+  ingredient: optionalText(5000),
+  packSizes,
+  priceInr: optionalNumber.pipe(z.number().min(0).optional()),
+  priceUsd: optionalNumber.pipe(z.number().min(0).optional()),
   stock: optionalNumber.pipe(z.number().int().min(0).optional()),
   lowStockAt: optionalNumber.pipe(z.number().int().min(0).optional()),
   active: z
@@ -29,6 +51,12 @@ export const productCreateSchema = z.object({
 });
 
 export const productUpdateSchema = productCreateSchema.partial();
+
+/** Bulk action payload for selecting many products at once in the admin. */
+export const productBulkSchema = z.object({
+  ids: z.array(z.string().min(1)).min(1, 'Select at least one product.').max(500),
+  action: z.enum(['archive', 'delete']),
+});
 
 export const statusUpdateSchema = z.object({
   id: z.string().min(1),

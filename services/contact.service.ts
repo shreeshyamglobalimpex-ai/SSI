@@ -1,6 +1,7 @@
-import { db } from "@/lib/db/prisma";
+import { db, withDbRetry } from "@/lib/db/prisma";
 import type { ContactInput } from "@/lib/validations/contact";
 
 export async function createContactMessage(input: ContactInput) {
-  return db.contactMessage.create({ data: input });
+  // Retry on transient Neon "connection closed" errors after an idle period.
+  return withDbRetry(() => db.contactMessage.create({ data: input }));
 }

@@ -1,95 +1,158 @@
 "use client";
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { Search, Package, Send } from "lucide-react";
+import { memo, useCallback, useEffect, useMemo, useState } from "react";
+import { Search, Package } from "lucide-react";
+import Link from "next/link";
 import clsx from "clsx";
-import { InquiryModal } from "./inquiry-modal";
+import { ProductImage } from "./product-image";
+import { productService } from "@/lib/api/services";
+import type { StoreListResult } from "@/lib/api/services";
+import { Pagination } from "@/components/ui/pagination";
+import type { StoreProduct } from "@/types/api";
 
-type P = {
-  id: string;
-  name: string;
-  slug: string;
-  description: string;
-  category: { id: string; name: string; slug: string };
-  stock: number;
-  price: string | null;
-  images: { id: string }[];
-};
+type P = StoreProduct;
 
-function ProductImage({ product, className }: { product: P; className?: string }) {
-  const [failed, setFailed] = useState(false);
-  if (product.images.length === 0 || failed) {
-    return (
-      <div
-        className={clsx(
-          "grid place-items-center bg-gradient-to-br from-emerald-50 to-slate-50 text-emerald-300",
-          className,
-        )}
-      >
-        <Package className="size-10" strokeWidth={1.5} />
-      </div>
-    );
-  }
+/** Page-size choices offered in the "Per page" selector. */
+const PAGE_SIZE_OPTIONS = [12, 24, 48, 96];
+
+/** A single product card. Memoised so typing in the search box (which changes
+ *  the parent's `q` state) does not re-render every unchanged card. */
+const ProductCard = memo(function ProductCard({ product }: { product: P }) {
   return (
-    // eslint-disable-next-line @next/next/no-img-element
-    <img
-      src={`/api/products/${product.id}/image`}
-      alt={product.name}
-      loading="lazy"
-      decoding="async"
-      onError={() => setFailed(true)}
-      className={clsx("object-cover", className)}
-    />
+    <article className="group relative flex flex-col overflow-hidden rounded-2xl border border-slate-200/70 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04)] transition hover:-translate-y-1 hover:shadow-[0_12px_32px_rgba(15,23,42,0.1)]">
+      <Link
+        href={`/store/${product.slug}`}
+        className="absolute inset-0 z-10"
+        aria-label={`View details for ${product.name}`}
+      />
+      <div className="relative aspect-[4/3] overflow-hidden">
+        <ProductImage
+          product={product}
+          className="h-full w-full transition-transform duration-500 group-hover:scale-105"
+        />
+        <span className="absolute left-3 top-3 rounded-full bg-white/90 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wider text-emerald-700 backdrop-blur">
+          {product.category.name}
+        </span>
+        {product.stock <= 0 && (
+          <span className="absolute right-3 top-3 rounded-full bg-slate-900/80 px-2.5 py-1 text-[11px] font-semibold text-white backdrop-blur">
+            Out of stock
+          </span>
+        )}
+      </div>
+      <div className="flex flex-1 flex-col p-5">
+        <h2 className="text-base font-semibold tracking-tight text-slate-900 transition-colors group-hover:text-emerald-700">
+          {product.name}
+        </h2>
+        <p className="mt-1.5 line-clamp-2 text-sm leading-relaxed text-slate-500">
+          {product.description || "No description available."}
+        </p>
+        <div className="mt-4 flex flex-wrap items-baseline gap-x-3 gap-y-1">
+          {product.priceInr ? (
+            <span className="text-lg font-semibold text-slate-900">
+              ₹{product.priceInr}
+            </span>
+          ) : null}
+          {product.priceUsd ? (
+            <span className="text-sm font-semibold text-slate-500">
+              ${product.priceUsd}
+            </span>
+          ) : null}
+          {!product.priceInr && !product.priceUsd && (
+            <span className="text-sm text-slate-400">Price on request</span>
+          )}
+        </div>
+        <span className="mt-4 inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-slate-900 text-sm font-semibold text-white transition group-hover:bg-emerald-700">
+          View details
+        </span>
+      </div>
+    </article>
   );
-}
+});
 
 export default function StoreClient({
   initialCategories,
   initialProducts,
   initialPageSize,
+  initialTotal,
+  initialPages,
+  initialCategory = "",
+  initialQuery = "",
 }: {
   initialCategories: { id: string; name: string; slug: string }[];
   initialProducts: P[];
   initialPageSize: number;
+  initialTotal: number;
+  initialPages: number;
+  initialCategory?: string;
+  initialQuery?: string;
 }) {
   const [items, setItems] = useState<P[] | null>(null);
-  const [q, setQ] = useState("");
-  const [category, setCategory] = useState("");
-  const [selected, setSelected] = useState<P | null>(null);
+  const [q, setQ] = useState(initialQuery);
+  const [category, setCategory] = useState(initialCategory);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(initialPageSize);
+  const [total, setTotal] = useState(initialTotal);
+  const [pages, setPages] = useState(initialPages);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  const load = useCallback(async (search: string, cat: string) => {
-    setLoading(true);
-    setError("");
+  const load = useCallback(
+    async (search: string, cat: string, pageNum: number, size: number) => {
+      setLoading(true);
+      setError("");
 
-    try {
-      const res = await fetch(
-        `/api/store/products?q=${encodeURIComponent(search)}&category=${encodeURIComponent(cat)}&pageSize=${initialPageSize}`,
-      );
-      const d = (await res.json()) as { success: boolean; data?: P[] };
+      try {
+        const d: StoreListResult = await productService.listStore({
+          q: search,
+          category: cat,
+          page: pageNum,
+          pageSize: size,
+        });
 
-      if (!d.success) throw new Error("Request failed");
+        setItems(d.items ?? []);
+        setTotal(d.total ?? 0);
+        setPages(d.pages ?? 1);
+      } catch {
+        setError("Unable to load products. Please try again.");
+      } finally {
+        setLoading(false);
+      }
+    },
+    [],
+  );
 
-      // Tagging the result with its query keeps a slow response for an old
-      // filter from ever being rendered as if it were the current one.
-      setItems(d.data ?? []);
-    } catch {
-      setError("Unable to load products. Please try again.");
-    } finally {
-      setLoading(false);
-    }
-  }, [initialPageSize]);
+  // The unfiltered first page at the default size is server-rendered, so it
+  // never needs a request. Any other combination (filter, page, or custom
+  // page size) fetches from the API.
+  const isInitialView =
+    q === "" && category === "" && page === 1 && pageSize === initialPageSize;
 
+  // Changing search/category/page/pageSize refetches with the new params.
   useEffect(() => {
-    // With no filters the server-rendered page is authoritative — no request.
-    if (q === "" && category === "") return;
+    if (isInitialView) return;
 
-    const t = setTimeout(() => void load(q, category), 250);
+    const t = setTimeout(() => void load(q, category, page, pageSize), 250);
     return () => clearTimeout(t);
-  }, [q, category, load]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [q, category, page, pageSize, load]);
 
-  // Unfiltered state always falls back to the server-rendered list.
-  const visible = q === "" && category === "" ? initialProducts : (items ?? []);
+  // Selecting a category toggles it: clicking the active one clears it.
+  function pickCategory(slug: string) {
+    setCategory((c) => (c === slug ? "" : slug));
+    setPage(1);
+  }
+
+  // Changing page size resets to page 1 so the user never lands off the end.
+  function changePageSize(size: number) {
+    setPageSize(size);
+    setPage(1);
+  }
+
+  // Unfiltered first page falls back to the server-rendered list; every other
+  // state (filter, page, or custom size) renders the fetched result.
+  const visible = isInitialView ? initialProducts : (items ?? []);
+  const displayTotal = isInitialView ? initialTotal : total;
+  const displayPages = isInitialView ? initialPages : pages;
+  const displayPage = isInitialView ? 1 : page;
 
   const pills = useMemo(
     () => [
@@ -118,23 +181,29 @@ export default function StoreClient({
       </div>
 
       {/* Search + category pills */}
-      <div className="mt-8 flex flex-col gap-4 lg:flex-row lg:items-center">
+      <div className="mt-8 flex flex-col gap-4">
         <div className="relative w-full max-w-md">
           <Search className="absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
           <input
             value={q}
-            onChange={(e) => setQ(e.target.value)}
+            onChange={(e) => {
+              setQ(e.target.value);
+              setPage(1);
+            }}
             placeholder="Search products…"
             className="h-12 w-full rounded-2xl border border-slate-200 bg-white pl-10 pr-4 text-sm outline-none transition placeholder:text-slate-400 focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100"
           />
         </div>
-        <div className="-mx-5 flex gap-2 overflow-x-auto px-5 pb-1 lg:mx-0 lg:flex-1 lg:justify-end lg:px-0">
+        {/* Category pills: horizontal scroll on mobile, but wrap onto multiple
+            rows on desktop so every category is always visible (no clipping). */}
+        <div className="-mx-5 flex flex-wrap gap-2 px-5 lg:mx-0 lg:px-0">
           {pills.map((p) => (
             <button
               key={p.slug || "all"}
-              onClick={() => setCategory(p.slug)}
+              onClick={() => pickCategory(p.slug)}
+              aria-pressed={category === p.slug}
               className={clsx(
-                "shrink-0 rounded-full border px-4 py-2 text-sm font-medium transition",
+                "rounded-full border px-4 py-2 text-sm font-medium transition",
                 category === p.slug
                   ? "border-slate-900 bg-slate-900 text-white"
                   : "border-slate-200 bg-white text-slate-600 hover:border-emerald-300 hover:text-emerald-800",
@@ -185,54 +254,43 @@ export default function StoreClient({
       ) : (
         <div className="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {visible.map((p) => (
-            <article
-              key={p.id}
-              className="group flex flex-col overflow-hidden rounded-2xl border border-slate-200/70 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04)] transition hover:-translate-y-1 hover:shadow-[0_12px_32px_rgba(15,23,42,0.1)]"
-            >
-              <div className="relative aspect-[4/3] overflow-hidden">
-                <ProductImage
-                  product={p}
-                  className="h-full w-full transition-transform duration-500 group-hover:scale-105"
-                />
-                <span className="absolute left-3 top-3 rounded-full bg-white/90 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wider text-emerald-700 backdrop-blur">
-                  {p.category.name}
-                </span>
-                {p.stock <= 0 && (
-                  <span className="absolute right-3 top-3 rounded-full bg-slate-900/80 px-2.5 py-1 text-[11px] font-semibold text-white backdrop-blur">
-                    Out of stock
-                  </span>
-                )}
-              </div>
-              <div className="flex flex-1 flex-col p-5">
-                <h2 className="text-base font-semibold tracking-tight text-slate-900">
-                  {p.name}
-                </h2>
-                <p className="mt-1.5 line-clamp-2 text-sm leading-relaxed text-slate-500">
-                  {p.description || "No description available."}
-                </p>
-                <div className="mt-4 flex items-center justify-between">
-                  {p.price ? (
-                    <span className="text-lg font-semibold text-slate-900">
-                      ₹{p.price}
-                    </span>
-                  ) : (
-                    <span className="text-sm text-slate-400">Price on request</span>
-                  )}
-                </div>
-                <button
-                  onClick={() => setSelected(p)}
-                  className="mt-4 inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-slate-900 text-sm font-semibold text-white transition hover:bg-emerald-700"
-                >
-                  <Send className="size-4" /> Send enquiry
-                </button>
-              </div>
-            </article>
+            <ProductCard key={p.id} product={p} />
           ))}
         </div>
       )}
 
-      {selected && (
-        <InquiryModal product={selected} onClose={() => setSelected(null)} />
+      {/* Pagination */}
+      {!loading && !error && visible.length > 0 && (
+        <div className="mt-12 flex flex-col items-center gap-4">
+          <Pagination
+            page={displayPage}
+            pages={displayPages}
+            onChange={setPage}
+          />
+
+          <div className="flex flex-col items-center gap-3 sm:flex-row sm:gap-5">
+            <p className="text-xs text-slate-400">
+              Showing {visible.length} of {displayTotal}{" "}
+              product{displayTotal === 1 ? "" : "s"}
+            </p>
+
+            {/* Per-page selector — lets visitors load more per page. */}
+            <label className="flex items-center gap-2 text-xs text-slate-500">
+              Per page
+              <select
+                value={pageSize}
+                onChange={(e) => changePageSize(Number(e.target.value))}
+                className="h-8 rounded-lg border border-slate-200 bg-white px-2 text-xs font-medium text-slate-700 outline-none transition focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100"
+              >
+                {PAGE_SIZE_OPTIONS.map((n) => (
+                  <option key={n} value={n}>
+                    {n}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+        </div>
       )}
     </section>
   );

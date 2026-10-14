@@ -102,7 +102,7 @@ export function Footer() {
             rel="noopener noreferrer"
             className="transition-colors hover:text-white"
           >
-            Made by Luvantaz Solutions
+            Designed, Developed & Maintained by Luvantaz Solutions
           </Link>
         </div>
       </div>

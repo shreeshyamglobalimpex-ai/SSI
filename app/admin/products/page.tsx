@@ -1,125 +1,144 @@
 "use client";
-import { useEffect, useState } from "react";
-import { toast } from "sonner";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Download,
   ImageUp,
   Package,
+  Pencil,
   Plus,
   Search,
   Upload,
 } from "lucide-react";
-import { Badge, Card, EmptyState, PageHeader, Spinner } from "@/components/admin/ui";
-import { Select } from "@/components/ui/select";
-
-type Product = {
-  id: string;
-  name: string;
-  sku: string | null;
-  stock: number;
-  lowStockAt: number;
-  price: string | null;
-  category: { id: string; name: string };
-  images: { id: string }[];
-};
-type Category = { id: string; name: string };
+import {
+  Badge,
+  Card,
+  EmptyState,
+  PageHeader,
+  Spinner,
+} from "@/components/admin/ui";
+import { ProductForm } from "@/components/admin/product-form";
+import { ImportProducts } from "@/components/admin/import-products";
+import { Pagination } from "@/components/ui/pagination";
+import { useProductsStore } from "@/store/products-store";
+import type { AdminProduct } from "@/types/api";
 
 export default function Products() {
-  const [data, setData] = useState<Product[]>([]);
-  const [cats, setCats] = useState<Category[]>([]);
-  const [form, setForm] = useState<Record<string, string>>({});
+  const items = useProductsStore((s) => s.items);
+  const categories = useProductsStore((s) => s.categories);
+  const loading = useProductsStore((s) => s.loading);
+  const page = useProductsStore((s) => s.page);
+  const pages = useProductsStore((s) => s.pages);
+  const query = useProductsStore((s) => s.query);
+  const fetchProducts = useProductsStore((s) => s.fetch);
+  const fetchCategories = useProductsStore((s) => s.fetchCategories);
+  const archive = useProductsStore((s) => s.archive);
+  const bulkAction = useProductsStore((s) => s.bulkAction);
+  const uploadImage = useProductsStore((s) => s.uploadImage);
+
   const [file, setFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState<string | null>(null);
   const [q, setQ] = useState("");
+  const [editing, setEditing] = useState<AdminProduct | null>(null);
   const [showForm, setShowForm] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const [showImport, setShowImport] = useState(false);
 
-  async function load(search = q) {
-    try {
-      const [p, c] = await Promise.all([
-        fetch(`/api/admin/products?q=${encodeURIComponent(search)}`).then((x) => x.json()),
-        fetch("/api/admin/categories").then((x) => x.json()),
-      ]);
+  // Multi-select: ids of the checked rows on the current page.
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [bulkBusy, setBulkBusy] = useState(false);
 
-      if (!p.success || !c.success) throw new Error("Request failed");
-
-      setData(p.data || []);
-      setCats(c.data || []);
-    } catch {
-      toast.error("Unable to load products");
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  // Debounced loader: also covers the initial mount (q starts empty).
   useEffect(() => {
-    const t = setTimeout(() => {
-      void load(q);
-    }, q === "" ? 0 : 250);
+    void fetchCategories();
+  }, [fetchCategories]);
+
+  // Debounced server-side search. Typing resets to page 1 so results stay
+  // relevant; an explicit page change (via Pagination) refetches that page.
+  useEffect(() => {
+    const t = setTimeout(() => void fetchProducts({ q, page: 1 }), 250);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [q]);
 
-  async function save(e: React.FormEvent) {
-    e.preventDefault();
-    try {
-      const res = await fetch("/api/admin/products", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
-      });
+  // Clear row selection whenever the search term changes so ids from a previous
+  // result set never carry over.
+  useEffect(() => {
+    clearSelection();
+  }, [q]);
 
-      if (!res.ok) {
-        const d = (await res.json().catch(() => ({}))) as { error?: string };
-        toast.error(d.error || "Unable to create product");
-        return;
-      }
+  const gotoPage = useCallback(
+    (p: number) => void fetchProducts({ q, page: p }),
+    [fetchProducts, q],
+  );
 
-      toast.success("Product created");
-      setForm({});
-      setShowForm(false);
-      await load();
-    } catch {
-      toast.error("Unable to create product");
+  // Refresh the current view after a create/edit so totals and rows stay true.
+  const refresh = useCallback(
+    () => void fetchProducts({ q, page }),
+    [fetchProducts, q, page],
+  );
+
+  // With server-side search the loaded items *are* the filtered set — no
+  // client-side slicing needed.
+  const data = useMemo(() => items, [items]);
+
+  // ── Multi-select helpers ──────────────────────────────────────────────
+  const selectedIds = useMemo(() => Array.from(selected), [selected]);
+  const allOnPageSelected =
+    data.length > 0 && data.every((p) => selected.has(p.id));
+  const someOnPageSelected = data.some((p) => selected.has(p.id));
+
+  function toggleOne(id: string) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function toggleAllOnPage() {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (allOnPageSelected) data.forEach((p) => next.delete(p.id));
+      else data.forEach((p) => next.add(p.id));
+      return next;
+    });
+  }
+
+  function clearSelection() {
+    setSelected(new Set());
+  }
+
+  async function runBulk(action: "archive" | "delete") {
+    if (selectedIds.length === 0) return;
+    const label =
+      action === "delete" ? "permanently delete" : "archive (hide from store)";
+    if (
+      !confirm(
+        `${label} ${selectedIds.length} product${
+          selectedIds.length === 1 ? "" : "s"
+        }?`,
+      )
+    )
+      return;
+
+    setBulkBusy(true);
+    const ok = await bulkAction(selectedIds, action);
+    setBulkBusy(false);
+    if (ok) {
+      clearSelection();
+      await fetchProducts({ q, page });
     }
   }
+  // ─────────────────────────────────────────────────────────────────────
 
   async function upload(id: string) {
     if (!file) return;
     setUploading(id);
-    try {
-      const f = new FormData();
-      f.set("image", file);
-      const res = await fetch(`/api/admin/products/${id}/image`, { method: "POST", body: f });
-
-      if (!res.ok) {
-        const d = (await res.json().catch(() => ({}))) as { error?: string };
-        toast.error(d.error || "Upload failed");
-        return;
-      }
-
-      toast.success("Image uploaded");
+    const ok = await uploadImage(id, file);
+    if (ok) {
       setFile(null);
-      await load();
-    } catch {
-      toast.error("Upload failed");
-    } finally {
-      setUploading(null);
+      await fetchProducts({ q, page });
     }
-  }
-
-  async function archive(id: string, name: string) {
-    if (!confirm(`Archive "${name}"? It will be hidden from the store.`)) return;
-
-    try {
-      const res = await fetch(`/api/admin/products/${id}`, { method: "DELETE" });
-      if (!res.ok) throw new Error("Failed");
-      toast.success("Product archived");
-      await load();
-    } catch {
-      toast.error("Unable to archive product");
-    }
+    setUploading(null);
   }
 
   return (
@@ -137,6 +156,12 @@ export default function Products() {
                 <Download className="size-4" /> Export
               </a>
               <button
+                onClick={() => setShowImport((v) => !v)}
+                className="inline-flex h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-medium text-slate-600 transition hover:bg-slate-50 hover:text-slate-900"
+              >
+                <Upload className="size-4" /> {showImport ? "Close import" : "Import"}
+              </button>
+              <button
                 onClick={() => setShowForm((v) => !v)}
                 className="inline-flex h-10 items-center gap-2 rounded-xl bg-slate-900 px-4 text-sm font-semibold text-white transition hover:bg-slate-800"
               >
@@ -146,68 +171,53 @@ export default function Products() {
           }
         />
 
+        {/* Bulk import */}
+        {showImport && (
+          <div className="mb-8">
+            <ImportProducts />
+          </div>
+        )}
+
         {/* Create form */}
         {showForm && (
           <Card className="mb-8 p-6">
             <h2 className="text-sm font-semibold uppercase tracking-wider text-slate-400">
               New product
             </h2>
-            <form onSubmit={save} className="mt-4 grid gap-4 md:grid-cols-4">
-              <input
-                required
-                placeholder="Product name"
-                value={form.name || ""}
-                onChange={(e) => setForm({ ...form, name: e.target.value })}
-                className="h-11 rounded-xl border border-slate-200 bg-white px-3.5 text-sm outline-none transition placeholder:text-slate-400 focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100 md:col-span-2"
+            <div className="mt-4">
+              <ProductForm
+                onDone={() => {
+                  setShowForm(false);
+                  refresh();
+                }}
               />
-              <Select
-                required
-                value={form.categoryId || ""}
-                onChange={(e) => setForm({ ...form, categoryId: e.target.value })}
-              >
-                <option value="">Category…</option>
-                {cats.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                  </option>
-                ))}
-              </Select>
-              <input
-                placeholder="SKU"
-                value={form.sku || ""}
-                onChange={(e) => setForm({ ...form, sku: e.target.value })}
-                className="h-11 rounded-xl border border-slate-200 bg-white px-3.5 text-sm outline-none transition placeholder:text-slate-400 focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100"
-              />
-              <input
-                type="number"
-                min={0}
-                placeholder="Stock"
-                value={form.stock || 0}
-                onChange={(e) => setForm({ ...form, stock: e.target.value })}
-                className="h-11 rounded-xl border border-slate-200 bg-white px-3.5 text-sm outline-none transition placeholder:text-slate-400 focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100"
-              />
-              <input
-                type="number"
-                min={0}
-                step="0.01"
-                placeholder="Price"
-                value={form.price || ""}
-                onChange={(e) => setForm({ ...form, price: e.target.value })}
-                className="h-11 rounded-xl border border-slate-200 bg-white px-3.5 text-sm outline-none transition placeholder:text-slate-400 focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100"
-              />
-              <textarea
-                placeholder="Description"
-                value={form.description || ""}
-                onChange={(e) => setForm({ ...form, description: e.target.value })}
-                className="min-h-11 rounded-xl border border-slate-200 bg-white px-3.5 py-3 text-sm outline-none transition placeholder:text-slate-400 focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100 md:col-span-2"
-              />
+            </div>
+          </Card>
+        )}
+
+        {/* Edit form */}
+        {editing && (
+          <Card className="mb-8 p-6">
+            <div className="flex items-center justify-between">
+              <h2 className="text-sm font-semibold uppercase tracking-wider text-slate-400">
+                Edit product
+              </h2>
               <button
-                type="submit"
-                className="h-11 rounded-xl bg-emerald-700 text-sm font-semibold text-white transition hover:bg-emerald-800 md:col-span-1"
+                onClick={() => setEditing(null)}
+                className="rounded-lg px-2.5 py-1.5 text-xs font-medium text-slate-400 transition hover:bg-slate-50 hover:text-slate-600"
               >
-                Create product
+                Cancel
               </button>
-            </form>
+            </div>
+            <div className="mt-4">
+              <ProductForm
+                product={editing}
+                onDone={() => {
+                  setEditing(null);
+                  refresh();
+                }}
+              />
+            </div>
           </Card>
         )}
 
@@ -224,6 +234,38 @@ export default function Products() {
 
         {/* Table */}
         <Card className="overflow-hidden">
+          {/* Bulk action bar — visible only when rows are selected */}
+          {selectedIds.length > 0 && (
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 bg-emerald-50/60 px-5 py-3">
+              <p className="text-sm font-medium text-slate-700">
+                {selectedIds.length} selected
+              </p>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={clearSelection}
+                  disabled={bulkBusy}
+                  className="rounded-lg px-2.5 py-1.5 text-xs font-medium text-slate-500 transition hover:bg-white disabled:opacity-50"
+                >
+                  Clear
+                </button>
+                <button
+                  onClick={() => runBulk("archive")}
+                  disabled={bulkBusy}
+                  className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-50 disabled:pointer-events-none disabled:opacity-50"
+                >
+                  {bulkBusy ? "Working…" : "Archive"}
+                </button>
+                <button
+                  onClick={() => runBulk("delete")}
+                  disabled={bulkBusy}
+                  className="rounded-lg bg-rose-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-rose-700 disabled:pointer-events-none disabled:opacity-50"
+                >
+                  {bulkBusy ? "Working…" : "Delete"}
+                </button>
+              </div>
+            </div>
+          )}
+
           {loading ? (
             <div className="flex items-center justify-center gap-2 py-16 text-sm text-slate-500">
               <Spinner /> Loading products…
@@ -239,9 +281,24 @@ export default function Products() {
               <table className="w-full text-left text-sm">
                 <thead>
                   <tr className="border-b border-slate-100 bg-slate-50/60 text-xs font-semibold uppercase tracking-wider text-slate-400">
+                    <th className="w-10 px-4 py-3">
+                      <input
+                        type="checkbox"
+                        aria-label="Select all on this page"
+                        checked={allOnPageSelected}
+                        ref={(el) => {
+                          if (el)
+                            el.indeterminate =
+                              !allOnPageSelected && someOnPageSelected;
+                        }}
+                        onChange={toggleAllOnPage}
+                        className="size-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
+                      />
+                    </th>
                     <th className="px-5 py-3">Product</th>
                     <th className="px-5 py-3">Category</th>
-                    <th className="px-5 py-3">Price</th>
+                    <th className="px-5 py-3">Manufacturer</th>
+                    <th className="px-5 py-3">Price (₹ / $)</th>
                     <th className="px-5 py-3">Stock</th>
                     <th className="px-5 py-3">Image</th>
                     <th className="px-5 py-3 text-right">Actions</th>
@@ -252,6 +309,15 @@ export default function Products() {
                     const low = p.stock <= (p.lowStockAt || 5);
                     return (
                       <tr key={p.id} className="transition hover:bg-slate-50/60">
+                        <td className="px-4 py-4">
+                          <input
+                            type="checkbox"
+                            aria-label={`Select ${p.name}`}
+                            checked={selected.has(p.id)}
+                            onChange={() => toggleOne(p.id)}
+                            className="size-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
+                          />
+                        </td>
                         <td className="px-5 py-4">
                           <p className="font-medium text-slate-900">{p.name}</p>
                           {p.sku && (
@@ -262,7 +328,14 @@ export default function Products() {
                           <Badge tone="slate">{p.category?.name}</Badge>
                         </td>
                         <td className="px-5 py-4 text-slate-600">
-                          {p.price ? `₹${p.price}` : "—"}
+                          {p.manufacturer || <span className="text-slate-300">—</span>}
+                        </td>
+                        <td className="px-5 py-4 text-slate-600">
+                          <div className="flex flex-col">
+                            {p.priceInr && <span>₹{p.priceInr}</span>}
+                            {p.priceUsd && <span className="text-slate-400">${p.priceUsd}</span>}
+                            {!p.priceInr && !p.priceUsd && <span>—</span>}
+                          </div>
                         </td>
                         <td className="px-5 py-4">
                           <Badge tone={low ? "rose" : "emerald"}>
@@ -288,6 +361,15 @@ export default function Products() {
                         </td>
                         <td className="px-5 py-4">
                           <div className="flex items-center justify-end gap-2">
+                            <button
+                              onClick={() => {
+                                setShowForm(false);
+                                setEditing(p);
+                              }}
+                              className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-medium text-slate-600 transition hover:bg-slate-50"
+                            >
+                              <Pencil className="size-3.5" /> Edit
+                            </button>
                             <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-medium text-slate-600 transition hover:bg-slate-50">
                               {uploading === p.id ? (
                                 <Spinner className="size-3" />
@@ -310,7 +392,10 @@ export default function Products() {
                               Save
                             </button>
                             <button
-                              onClick={() => archive(p.id, p.name)}
+                              onClick={async () => {
+                                if (!confirm(`Archive "${p.name}"? It will be hidden from the store.`)) return;
+                                await archive(p.id);
+                              }}
                               className="rounded-lg px-2.5 py-1.5 text-xs font-medium text-slate-400 transition hover:bg-rose-50 hover:text-rose-600"
                             >
                               Archive
@@ -322,6 +407,17 @@ export default function Products() {
                   })}
                 </tbody>
               </table>
+            </div>
+          )}
+
+          {/* Pagination */}
+          {!loading && data.length > 0 && (
+            <div className="flex flex-col items-center justify-between gap-3 border-t border-slate-100 px-5 py-4 sm:flex-row">
+              <p className="text-xs text-slate-400">
+                Page {page} of {pages} · {query ? `${items.length} match` : ""}
+                {query ? "es" : "items"} on this page
+              </p>
+              <Pagination page={page} pages={pages} onChange={gotoPage} />
             </div>
           )}
         </Card>

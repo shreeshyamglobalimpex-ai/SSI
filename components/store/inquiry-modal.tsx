@@ -1,11 +1,26 @@
 "use client";
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { X, Send } from "lucide-react";
 import { toast } from "sonner";
 import { Spinner } from "@/components/admin/ui";
+import { inquiryService } from "@/lib/api/services";
+import { ApiError } from "@/lib/api/client";
 
 const input =
   "h-11 w-full rounded-xl border border-slate-200 bg-white px-3.5 text-sm outline-none transition placeholder:text-slate-400 focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100";
+
+const inputError =
+  "h-11 w-full rounded-xl border border-rose-300 bg-white px-3.5 text-sm outline-none transition placeholder:text-slate-400 focus:border-rose-500 focus:ring-2 focus:ring-rose-100";
+
+/** Reads field-level errors returned by the API off the thrown ApiError. */
+function readFieldErrors(error: unknown): Record<string, string> {
+  if (error instanceof ApiError) {
+    const fields = (error.payload as { fields?: Record<string, string> })
+      ?.fields;
+    if (fields && typeof fields === "object") return fields;
+  }
+  return {};
+}
 
 export function InquiryModal({
   product,
@@ -15,37 +30,51 @@ export function InquiryModal({
   onClose: () => void;
 }) {
   const [busy, setBusy] = useState(false);
+  const [fields, setFields] = useState<Record<string, string>>({});
+  const [formError, setFormError] = useState("");
 
-  async function submit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    setBusy(true);
+  const submit = useCallback(
+    async (e: React.FormEvent<HTMLFormElement>) => {
+      e.preventDefault();
+      setBusy(true);
+      setFields({});
+      setFormError("");
 
-    try {
-      const f = new FormData(e.currentTarget);
-      const body = Object.fromEntries(f.entries()) as Record<string, string>;
-      body.productId = product.id;
-      body.productName = product.name;
+      try {
+        const f = new FormData(e.currentTarget);
+        const body = Object.fromEntries(f.entries()) as Record<string, string>;
+        body.productId = product.id;
+        body.productName = product.name;
 
-      const r = await fetch("/api/inquiries", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
-      const d: { error?: string } = r.ok ? {} : ((await r.json()) as { error?: string });
+        await inquiryService.submit(body as never);
 
-      if (!r.ok) {
-        toast.error(d.error || "Unable to submit");
-        return;
+        toast.success("Enquiry sent — we will get back to you shortly.");
+        onClose();
+      } catch (error) {
+        const serverFields = readFieldErrors(error);
+        if (Object.keys(serverFields).length > 0) {
+          setFields(serverFields);
+          setFormError("Please fix the highlighted fields.");
+        } else {
+          setFormError(
+            error instanceof ApiError
+              ? error.message
+              : "Unable to submit. Please try again.",
+          );
+        }
+      } finally {
+        setBusy(false);
       }
+    },
+    [product.id, product.name, onClose],
+  );
 
-      toast.success("Enquiry sent — we will get back to you shortly.");
-      onClose();
-    } catch {
-      toast.error("Unable to submit. Please try again.");
-    } finally {
-      setBusy(false);
-    }
-  }
+  // Pick the right styling + message for each field based on server errors.
+  const cls = (name: string) => (fields[name] ? inputError : input);
+  const err = (name: string) =>
+    fields[name] ? (
+      <p className="mt-1 text-xs text-rose-600">{fields[name]}</p>
+    ) : null;
 
   return (
     <div
@@ -75,35 +104,45 @@ export function InquiryModal({
         </div>
 
         <form onSubmit={submit} className="grid gap-4 px-7 py-6 sm:grid-cols-2">
+          {formError && (
+            <p className="rounded-xl bg-rose-50 px-4 py-2.5 text-sm font-medium text-rose-700 sm:col-span-2">
+              {formError}
+            </p>
+          )}
           <div>
             <label className="mb-1.5 block text-sm font-medium text-slate-700">
               Your name *
             </label>
-            <input required name="name" placeholder="Full name" className={input} />
+            <input required name="name" placeholder="Full name" className={cls("name")} />
+            {err("name")}
           </div>
           <div>
             <label className="mb-1.5 block text-sm font-medium text-slate-700">
               Email *
             </label>
-            <input required type="email" name="email" placeholder="you@company.com" className={input} />
+            <input required type="email" name="email" placeholder="you@company.com" className={cls("email")} />
+            {err("email")}
           </div>
           <div>
             <label className="mb-1.5 block text-sm font-medium text-slate-700">
               Phone
             </label>
-            <input name="phone" placeholder="Phone number (optional)" className={input} />
+            <input name="phone" placeholder="Phone number (optional)" className={cls("phone")} />
+            {err("phone")}
           </div>
           <div>
             <label className="mb-1.5 block text-sm font-medium text-slate-700">
               Quantity
             </label>
-            <input name="quantity" placeholder="e.g. 5,000 units" className={input} />
+            <input name="quantity" placeholder="e.g. 5,000 units" className={cls("quantity")} />
+            {err("quantity")}
           </div>
           <div className="sm:col-span-2">
             <label className="mb-1.5 block text-sm font-medium text-slate-700">
               Delivery location *
             </label>
-            <input required name="deliveryLocation" placeholder="City, country" className={input} />
+            <input required name="deliveryLocation" placeholder="City, country" className={cls("deliveryLocation")} />
+            {err("deliveryLocation")}
           </div>
           <div className="sm:col-span-2">
             <label className="mb-1.5 block text-sm font-medium text-slate-700">
@@ -114,8 +153,13 @@ export function InquiryModal({
               name="message"
               placeholder="Describe your requirements, specifications or questions…"
               rows={4}
-              className="w-full resize-y rounded-xl border border-slate-200 bg-white px-3.5 py-3 text-sm outline-none transition placeholder:text-slate-400 focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100"
+              className={`w-full resize-y rounded-xl border bg-white px-3.5 py-3 text-sm outline-none transition placeholder:text-slate-400 focus:ring-2 ${
+                fields.message
+                  ? "border-rose-300 focus:border-rose-500 focus:ring-rose-100"
+                  : "border-slate-200 focus:border-emerald-600 focus:ring-emerald-100"
+              }`}
             />
+            {err("message")}
           </div>
           <div className="flex flex-wrap items-center gap-3 sm:col-span-2">
             <button

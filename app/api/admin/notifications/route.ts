@@ -11,13 +11,15 @@ export async function GET() {
     );
 
   try {
-    return NextResponse.json({
-      success: true,
-      data: await db.notification.findMany({
+    const [items, unread] = await db.$transaction([
+      db.notification.findMany({
         orderBy: { createdAt: 'desc' },
         take: 50,
       }),
-    });
+      db.notification.count({ where: { read: false } }),
+    ]);
+
+    return NextResponse.json({ success: true, data: items, unread });
   } catch (error) {
     console.error('Admin notifications fetch failed:', error);
     return NextResponse.json(
