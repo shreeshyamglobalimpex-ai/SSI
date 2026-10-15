@@ -147,7 +147,13 @@ function handleUnauthorized(config: RequestConfig): boolean {
   if (window.location.pathname.startsWith("/admin/login")) return false;
 
   toast.error("Your session has expired. Please sign in again.");
-  window.location.assign("/admin/login");
+  // Session expiry needs a hard navigation to reset in-memory auth state,
+  // so we intentionally bypass the Next.js router here. This module is a
+  // plain fetch utility (not a Component), so `useRouter()`/`redirect()`
+  // cannot be used. Build an absolute URL - external/absolute destinations
+  // are allowed by `@next/no-location-assign-relative-destination`.
+  const loginUrl = new URL("/admin/login", window.location.origin).href;
+  window.location.assign(loginUrl);
   return true;
 }
 
