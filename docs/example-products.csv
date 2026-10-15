@@ -1,0 +1,6 @@
+name,category,sku,slug,description,priceInr,priceUsd,stock,lowStockAt,active
+Paracetamol 500mg Tablets,Analgesics,PAR-500,,Strip of 10 tablets. For fever and mild pain relief.,25.5,0.30,1200,100,TRUE
+Amoxicillin 250mg Capsules,Antibiotics,AMX-250,,Box of 20 capsules. Prescription required.,180,2.20,350,50,TRUE
+Vitamin C 1000mg Effervescent,Supplements,VIT-C-1000,,Tube of 20 tablets. Immune support.,320,3.85,0,25,FALSE
+Ibuprofen 400mg Tablets,Analgesics,IBU-400,,Strip of 15 tablets. Anti-inflammatory.,42,0.51,800,80,TRUE
+Cetirizine 10mg Tablets,Antihistamines,CET-10,,Strip of 10 tablets. Allergy relief.,18,0.22,1500,150,TRUE
