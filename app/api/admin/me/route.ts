@@ -1,0 +1,1 @@
+import { NextResponse } from 'next/server'; import { getAdmin } from '@/lib/auth/admin'; export async function GET(){const a=await getAdmin();return NextResponse.json({success:!!a,data:a},{status:a?200:401})}

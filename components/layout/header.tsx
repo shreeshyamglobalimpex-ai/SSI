@@ -10,7 +10,7 @@ import clsx from "clsx";
 const links = [
   ["Home", "/"],
   ["Products", "/products"],
-  ["Brands", "/brands"],
+  ["Store", "/store"],
   ["Markets", "/markets"],
   ["About", "/about"],
   ["FAQ", "/faq"],
@@ -20,6 +20,13 @@ const links = [
 export function Header() {
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
+
+  // A link is "active" on an exact match, or on any child route (e.g. the
+  // Store link stays highlighted on /store/[slug] product pages). The home
+  // link "/" only matches exactly so it never highlights every other page.
+  const isActive = (href: string | undefined) =>
+    !!href &&
+    (pathname === href || (href !== "/" && pathname.startsWith(`${href}/`)));
 
   return (
     <header className="sticky top-0 z-50 border-b border-slate-200/70 bg-white/90 shadow-[0_1px_12px_rgba(15,23,42,0.04)] backdrop-blur">
@@ -51,7 +58,7 @@ export function Header() {
               key={href}
               href={href ?? ""}
               className={clsx(
-                pathname === href && "bg-emerald-50 text-emerald-800 border border-slate-50 focus-visible:outline-slate-50 active:outline-slate-50",
+                isActive(href) && "bg-emerald-50 text-emerald-800 border border-slate-50 focus-visible:outline-slate-50 active:outline-slate-50",
                 "rounded-full px-3 py-2 text-sm font-medium text-slate-600 transition-colors hover:bg-emerald-50 hover:text-emerald-800",
               )}
             >
@@ -81,7 +88,7 @@ export function Header() {
               key={href}
               href={href ?? ""}
               className={clsx(
-                pathname === href && "bg-emerald-50 text-emerald-800",
+                isActive(href) && "bg-emerald-50 text-emerald-800",
                 "block border-b border-slate-100 py-3 text-sm font-medium text-slate-700 transition-colors hover:text-emerald-700",
               )}
             >
