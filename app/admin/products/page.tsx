@@ -20,6 +20,7 @@ import { ProductForm } from "@/components/admin/product-form";
 import { ImportProducts } from "@/components/admin/import-products";
 import { Pagination } from "@/components/ui/pagination";
 import { useProductsStore } from "@/store/products-store";
+import { useAdminAutoRefresh } from "@/hooks/use-admin-auto-refresh";
 import type { AdminProduct } from "@/types/api";
 
 export default function Products() {
@@ -74,6 +75,10 @@ export default function Products() {
     () => void fetchProducts({ q, page }),
     [fetchProducts, q, page],
   );
+
+  // Live stock/price sync: when the bell announces a new alert (or another
+  // tab edits), quietly refetch the current page — no manual reload.
+  useAdminAutoRefresh(refresh, 30_000);
 
   // With server-side search the loaded items *are* the filtered set — no
   // client-side slicing needed.

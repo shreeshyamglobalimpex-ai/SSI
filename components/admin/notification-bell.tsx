@@ -2,111 +2,178 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { Bell, BellRing } from "lucide-react";
+import { toast } from "sonner";
 import clsx from "clsx";
-import { playBell } from "@/lib/utils/bell";
+import {
+  announceAdminAlert,
+  onCrossTabAlert,
+  requestNotificationPermission,
+  startTabAlert,
+  stopTabAlert,
+  type AdminAlert,
+} from "@/lib/utils/notify";
+import { unlockAudio, playBell } from "@/lib/utils/bell";
 
-type Notification = {
-  id: string;
-  type: string;
-  title: string;
-  message: string;
-  read: boolean;
-  createdAt: string;
-};
-
-const POLL_MS = 20_000;
+const POLL_VISIBLE_MS = 20_000;
+const POLL_HIDDEN_MS = 60_000;
 
 /**
- * Live notification bell for the admin header.
- *
- * Polls the notifications endpoint and, when a brand-new alert arrives, plays a
- * bell chime and fires a desktop/browser push notification with the details.
- * Shows an unread badge and links to the full notifications page. Degrades
- * gracefully: if the browser blocks notifications or audio, the in-app badge
- * and chime-on-next-gesture still work.
+ * Live notification bell for the admin header — polls for new alerts,
+ * chimes + pushes + toasts, and broadcasts a refresh event so every
+ * open admin list updates without manual reload.
  */
 export function NotificationBell() {
   const [unread, setUnread] = useState(0);
-  const [latest, setLatest] = useState<Notification | null>(null);
+  const [latest, setLatest] = useState<AdminAlert | null>(null);
   const [pulse, setPulse] = useState(false);
+  const seenRef = useRef<Set<string> | null>(null);
+  const primedRef = useRef(false);
+  const unlockedRef = useRef(false);
 
-  // Highest id we've already alerted on, so we never re-chime for old alerts.
-  const seenIdRef = useRef<string | null>(null);
-  const permissionAskedRef = useRef(false);
-
-  const requestPermission = useCallback(() => {
-    if (permissionAskedRef.current) return;
-    permissionAskedRef.current = true;
-    if (typeof window !== "undefined" && "Notification" in window) {
-      if (Notification.permission === "default") {
-        void Notification.requestPermission();
-      }
-    }
+  const getSeen = useCallback(() => {
+    if (seenRef.current) return seenRef.current;
+    const s = new Set<string>();
+    try {
+      const raw = localStorage.getItem("ssi-seen-notifs");
+      if (raw) (JSON.parse(raw) as string[]).forEach((id) => s.add(id));
+    } catch { /* start fresh */ }
+    seenRef.current = s;
+    return s;
   }, []);
 
-  const showPush = useCallback((n: Notification) => {
-    if (typeof window === "undefined" || !("Notification" in window)) return;
-    if (Notification.permission !== "granted") return;
-    try {
-      new Notification(n.title, {
-        body: n.message,
-        icon: "/logo.webp",
-        tag: n.id,
-      });
-    } catch {
-      // Some browsers throw if not constructed in a service worker — ignore.
+  const remember = useCallback((id: string) => {
+    const s = getSeen();
+    s.add(id);
+    const arr = Array.from(s).slice(-100);
+    seenRef.current = new Set(arr);
+    try { localStorage.setItem("ssi-seen-notifs", JSON.stringify(arr)); } catch { /* ignore */ }
+  }, [getSeen]);
+
+  // Central handler for a genuinely new alert: badge + chime/toast (only if
+  // this tab is visible — hidden tabs stay quiet but still blink) + tab blink
+  // + fan-out so lists refresh.
+  const handleFresh = useCallback((n: AdminAlert, unreadCount: number) => {
+    const seen = getSeen();
+    if (seen.has(n.id)) return;
+    remember(n.id);
+    setLatest(n);
+    setUnread(unreadCount);
+    if (document.visibilityState === "visible") {
+      announceAdminAlert(n);
+    } else {
+      // Background tab: silent (no toast/chime duplication) but still a
+      // browser popup + cross-tab fan-out. Chime attempt is harmless —
+      // blocked audio just no-ops until next gesture unlocks it.
+      playBell();
+      announceAdminAlert(n, { silent: true });
+    }
+    startTabAlert(unreadCount);
+    setPulse(true);
+    window.setTimeout(() => setPulse(false), 2500);
+  }, [remember, getSeen]);
+
+  const unlock = useCallback(() => {
+    if (!unlockedRef.current) {
+      unlockedRef.current = true;
+      unlockAudio();
+      if ("Notification" in window && Notification.permission === "default") {
+        void requestNotificationPermission().then((p) => {
+          if (p === "granted") toast.success("Notifications on — you'll hear new entries.");
+          else if (p === "denied") toast.warning("Notifications blocked — allow them in site settings.");
+        });
+      }
     }
   }, []);
 
   useEffect(() => {
+    window.addEventListener("pointerdown", unlock);
+    window.addEventListener("keydown", unlock);
+    return () => {
+      window.removeEventListener("pointerdown", unlock);
+      window.removeEventListener("keydown", unlock);
+    };
+  }, [unlock]);
+
+  useEffect(() => {
     let active = true;
+    let timer: number | null = null;
 
     async function poll() {
       try {
-        const res = await fetch("/api/admin/notifications", {
-          cache: "no-store",
-        });
+        // Cheap ping: count + newest row only (~50–150ms), not the full list.
+        const res = await fetch("/api/admin/notifications?mode=ping", { cache: "no-store" });
         if (!res.ok) return;
         const json = await res.json();
         if (!active || !json?.success) return;
-
-        const items: Notification[] = json.data ?? [];
         const nextUnread: number = json.unread ?? 0;
-        const top = items[0] ?? null;
+        const top: AdminAlert | null = json.latest ?? json.data?.[0] ?? null;
+        setUnread(nextUnread);
 
-        // First load primes the baseline without making noise.
-        if (seenIdRef.current === null) {
-          seenIdRef.current = top?.id ?? "";
-        } else if (top && top.id !== seenIdRef.current && !top.read) {
-          // A genuinely new, unread alert arrived → chime + push.
-          seenIdRef.current = top.id;
-          playBell();
-          showPush(top);
-          setLatest(top);
-          setPulse(true);
-          window.setTimeout(() => setPulse(false), 2500);
+        // Red dot gone rule: no unread left → restore tab immediately.
+        if (nextUnread === 0) {
+          stopTabAlert();
+          setPulse(false);
         }
 
-        setUnread(nextUnread);
-      } catch {
-        // Silent — transient network/poll errors shouldn't disrupt the admin.
+        if (!primedRef.current) {
+          primedRef.current = true;
+          if (top) remember(top.id);
+          window.setTimeout(() => {
+            if (active && "Notification" in window && Notification.permission === "default") {
+              toast.info("Enable browser notifications?", {
+                description: "Get popup + sound for every new inquiry — even in another tab.",
+                action: { label: "Enable", onClick: () => { void requestNotificationPermission(); } },
+                duration: 8000,
+              });
+            }
+          }, 2500);
+          return;
+        }
+        if (top && !top.read) handleFresh(top, nextUnread);
+      } catch { /* silent */ }
+      finally {
+        // Adaptive cadence: fast when visible, slow when hidden (saves DB).
+        if (active) {
+          const next = document.visibilityState === "visible" ? POLL_VISIBLE_MS : POLL_HIDDEN_MS;
+          timer = window.setTimeout(poll, next);
+        }
       }
     }
 
+    // Alerts found by ANOTHER tab's poll → chime/blink here too, even hidden.
+    const offCrossTab = onCrossTabAlert((n) => {
+      if (!active) return;
+      setUnread((u) => {
+        const next = u + 1;
+        handleFresh(n, next);
+        return next;
+      });
+    });
+
+    // Coming back to this tab (or opening notifications) clears the blink.
+    const onVisible = () => {
+      if (document.visibilityState === "visible") {
+        stopTabAlert();
+        void poll();
+      }
+    };
+    document.addEventListener("visibilitychange", onVisible);
+
     void poll();
-    const timer = window.setInterval(poll, POLL_MS);
     return () => {
       active = false;
-      window.clearInterval(timer);
+      if (timer !== null) window.clearTimeout(timer);
+      document.removeEventListener("visibilitychange", onVisible);
+      offCrossTab();
     };
-  }, [showPush]);
+  }, [handleFresh, remember]);
 
   const hasUnread = unread > 0;
 
   return (
     <Link
       href="/admin/notifications"
-      onClick={requestPermission}
+      onClick={unlock}
       title={
         latest
           ? `Latest: ${latest.title}`

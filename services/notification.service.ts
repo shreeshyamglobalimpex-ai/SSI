@@ -7,23 +7,14 @@ type NotifyInput = {
 };
 
 /**
- * Creates a notification, collapsing duplicates: if an unread notification with
- * the same type and title already exists it is refreshed instead of duplicated.
+ * Creates a fresh notification row for every event.
+ *
+ * Each inquiry / contact / inventory event gets its own row (new id) so the
+ * admin bell + polling can detect "brand new id" reliably and chime. We
+ * intentionally do NOT collapse duplicates — collapsing reused the same id,
+ * which made the bell think nothing new arrived.
  */
 export async function createNotification({ type, title, message }: NotifyInput) {
-  const existing = await db.notification.findFirst({
-    where: { type, title, read: false },
-    orderBy: { createdAt: 'desc' },
-  });
-
-  if (existing) {
-    if (existing.message === message) return existing;
-    return db.notification.update({
-      where: { id: existing.id },
-      data: { message },
-    });
-  }
-
   return db.notification.create({ data: { type, title, message } });
 }
 
@@ -35,3 +26,4 @@ export async function notifyLowStock(productName: string, stock: number) {
     message: `${productName} has ${stock} units remaining.`,
   });
 }
+

@@ -1,8 +1,10 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Bell, CheckCheck } from "lucide-react";
 import { Badge, Card, EmptyState, PageHeader, Spinner, timeAgo } from "@/components/admin/ui";
+import { useAdminAutoRefresh } from "@/hooks/use-admin-auto-refresh";
+import { stopTabAlert } from "@/lib/utils/notify";
 
 type Notification = {
   id: string;
@@ -22,22 +24,30 @@ export default function Notifications() {
   const [rows, setRows] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
 
-  async function load() {
-    const d = await (await fetch("/api/admin/notifications")).json();
-    setRows(d.data || []);
-    setLoading(false);
-  }
-
-  useEffect(() => {
-    fetch("/api/admin/notifications")
-      .then((r) => r.json())
-      .then((d) => setRows(d.data || []))
-      .catch(() => toast.error("Unable to load notifications"))
-      .finally(() => setLoading(false));
+  const load = useCallback(async (silent = true) => {
+    try {
+      const d = await (await fetch("/api/admin/notifications", { cache: "no-store" })).json();
+      setRows(d.data || []);
+    } catch {
+      if (!silent) toast.error("Unable to load notifications");
+    } finally {
+      setLoading(false);
+    }
   }, []);
+
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- initial server fetch, not a sync cascade
+  useEffect(() => { void load(false); }, [load]);
+
+  // Opening this page means you've SEEN the alerts → stop the tab blink.
+  useEffect(() => { stopTabAlert(); }, []);
+
+  // Live list: refresh the moment the bell announces a new alert.
+  useAdminAutoRefresh(() => { void load(true); });
 
   async function markRead(id: string) {
     setRows((prev) => prev.map((r) => (r.id === id ? { ...r, read: true } : r)));
+    // One less unread — if none left, kill the tab blink right away.
+    if (rows.filter((r) => !r.read).length <= 1) stopTabAlert();
 
     try {
       const res = await fetch("/api/admin/notifications", {
@@ -75,6 +85,7 @@ export default function Notifications() {
       return;
     }
 
+    stopTabAlert();
     toast.success("All notifications marked as read");
   }
 

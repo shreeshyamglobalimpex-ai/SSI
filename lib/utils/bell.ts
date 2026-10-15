@@ -28,6 +28,15 @@ function getContext(): AudioContext | null {
 }
 
 /**
+ * Call this from a real user gesture (click / keydown, once) to unlock audio
+ * on browsers that start AudioContext in "suspended" state. Safe to call
+ * any time — it never plays a sound, it only resumes the context.
+ */
+export function unlockAudio(): void {
+  getContext();
+}
+
+/**
  * Plays a short two-tone bell. Safe to call repeatedly; each call schedules its
  * own oscillators and cleans them up when they finish.
  */
@@ -61,3 +70,4 @@ export function playBell(): void {
     osc.stop(now + start + 0.8);
   }
 }
+

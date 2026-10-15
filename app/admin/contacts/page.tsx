@@ -1,9 +1,10 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Mail, MessageSquare, Phone } from "lucide-react";
 import { Badge, Card, EmptyState, PageHeader, Spinner, timeAgo } from "@/components/admin/ui";
 import { Select } from "@/components/ui/select";
+import { useAdminAutoRefresh } from "@/hooks/use-admin-auto-refresh";
 
 type Message = {
   id: string;
@@ -21,13 +22,18 @@ export default function Contacts() {
   const [rows, setRows] = useState<Message[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    fetch("/api/admin/contacts")
-      .then((x) => x.json())
-      .then((x) => setRows(x.data || []))
-      .catch(() => {})
-      .finally(() => setLoading(false));
+  const load = useCallback(async () => {
+    try {
+      const x = await (await fetch("/api/admin/contacts", { cache: "no-store" })).json();
+      setRows(x.data || []);
+    } catch { /* silent on background refresh */ } finally { setLoading(false); }
   }, []);
+
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- initial server fetch, not a sync cascade
+  useEffect(() => { void load(); }, [load]);
+
+  // Auto-update when a new contact message arrives elsewhere.
+  useAdminAutoRefresh(() => { void load(); });
 
   async function status(id: string, next: string) {
     setRows((prev) => prev.map((r) => (r.id === id ? { ...r, status: next } : r)));

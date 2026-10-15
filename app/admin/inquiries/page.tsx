@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import {
   Building2,
@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { Badge, Card, EmptyState, PageHeader, Spinner, timeAgo } from "@/components/admin/ui";
 import { Select } from "@/components/ui/select";
+import { useAdminAutoRefresh } from "@/hooks/use-admin-auto-refresh";
 
 type Inquiry = {
   id: string;
@@ -41,13 +42,23 @@ export default function Inquiries() {
   const [filter, setFilter] = useState<(typeof filters)[number]>("all");
   const [q, setQ] = useState("");
 
-  useEffect(() => {
-    fetch("/api/admin/inquiries")
-      .then((r) => r.json())
-      .then((d) => setRows(d.data || []))
-      .catch(() => toast.error("Unable to load inquiries"))
-      .finally(() => setLoading(false));
+  const load = useCallback(async (silent = true) => {
+    try {
+      const r = await fetch("/api/admin/inquiries", { cache: "no-store" });
+      const d = await r.json();
+      setRows(d.data || []);
+    } catch {
+      if (!silent) toast.error("Unable to load inquiries");
+    } finally {
+      setLoading(false);
+    }
   }, []);
+
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- initial server fetch, not a sync cascade
+  useEffect(() => { void load(false); }, [load]);
+
+  // Auto-update: new inquiry arrives (bell event) / tab visible / 15s poll.
+  useAdminAutoRefresh(() => { void load(true); });
 
   async function status(id: string, next: string) {
     const previous = rows;
