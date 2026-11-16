@@ -79,7 +79,6 @@ export const groupedBrands = brands.reduce<Record<string, Brand[]>>(
 export type MarketRegion =
   | "Americas"
   | "Europe"
-  | "Middle East"
   | "Asia & Africa";
 
 export interface Market {
@@ -254,75 +253,75 @@ export const markets: Market[] = [
     region: "Europe",
   },
 
-  // ─────────────────────────────────────────────
-  // MIDDLE EAST
-  // ─────────────────────────────────────────────
-  {
-    name: "Saudi Arabia",
-    code: "SA",
-    flag: "🇸🇦",
-    region: "Middle East",
-  },
-  {
-    name: "United Arab Emirates",
-    code: "AE",
-    flag: "🇦🇪",
-    region: "Middle East",
-  },
-  {
-    name: "Qatar",
-    code: "QA",
-    flag: "🇶🇦",
-    region: "Middle East",
-  },
-  {
-    name: "Kuwait",
-    code: "KW",
-    flag: "🇰🇼",
-    region: "Middle East",
-  },
-  {
-    name: "Oman",
-    code: "OM",
-    flag: "🇴🇲",
-    region: "Middle East",
-  },
-  {
-    name: "Bahrain",
-    code: "BH",
-    flag: "🇧🇭",
-    region: "Middle East",
-  },
-  {
-    name: "Yemen",
-    code: "YE",
-    flag: "🇾🇪",
-    region: "Middle East",
-  },
-  {
-    name: "Jordan",
-    code: "JO",
-    flag: "🇯🇴",
-    region: "Middle East",
-  },
-  {
-    name: "Iraq",
-    code: "IQ",
-    flag: "🇮🇶",
-    region: "Middle East",
-  },
-  {
-    name: "Israel",
-    code: "IL",
-    flag: "🇮🇱",
-    region: "Middle East",
-  },
-  {
-    name: "Lebanon",
-    code: "LB",
-    flag: "🇱🇧",
-    region: "Middle East",
-  },
+  // // ─────────────────────────────────────────────
+  // // MIDDLE EAST
+  // // ─────────────────────────────────────────────
+  // {
+  //   name: "Saudi Arabia",
+  //   code: "SA",
+  //   flag: "🇸🇦",
+  //   region: "Middle East",
+  // },
+  // {
+  //   name: "United Arab Emirates",
+  //   code: "AE",
+  //   flag: "🇦🇪",
+  //   region: "Middle East",
+  // },
+  // {
+  //   name: "Qatar",
+  //   code: "QA",
+  //   flag: "🇶🇦",
+  //   region: "Middle East",
+  // },
+  // {
+  //   name: "Kuwait",
+  //   code: "KW",
+  //   flag: "🇰🇼",
+  //   region: "Middle East",
+  // },
+  // {
+  //   name: "Oman",
+  //   code: "OM",
+  //   flag: "🇴🇲",
+  //   region: "Middle East",
+  // },
+  // {
+  //   name: "Bahrain",
+  //   code: "BH",
+  //   flag: "🇧🇭",
+  //   region: "Middle East",
+  // },
+  // {
+  //   name: "Yemen",
+  //   code: "YE",
+  //   flag: "🇾🇪",
+  //   region: "Middle East",
+  // },
+  // {
+  //   name: "Jordan",
+  //   code: "JO",
+  //   flag: "🇯🇴",
+  //   region: "Middle East",
+  // },
+  // {
+  //   name: "Iraq",
+  //   code: "IQ",
+  //   flag: "🇮🇶",
+  //   region: "Middle East",
+  // },
+  // {
+  //   name: "Israel",
+  //   code: "IL",
+  //   flag: "🇮🇱",
+  //   region: "Middle East",
+  // },
+  // {
+  //   name: "Lebanon",
+  //   code: "LB",
+  //   flag: "🇱🇧",
+  //   region: "Middle East",
+  // },
 
   // ─────────────────────────────────────────────
   // ASIA & AFRICA

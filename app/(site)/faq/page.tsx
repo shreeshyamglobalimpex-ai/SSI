@@ -14,7 +14,7 @@ const faqs = [
   ],
   [
     "Which countries do you serve?",
-    "Our supplied market list includes destinations across the Americas, Europe, Middle East, Asia and Africa. Availability and export feasibility should be confirmed for each order.",
+    "Our supplied market list includes destinations across the Americas, Europe, , Asia and Africa. Availability and export feasibility should be confirmed for each order.",
   ],
   [
     "Do you supply generic and branded medicines?",

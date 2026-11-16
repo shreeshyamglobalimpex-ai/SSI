@@ -4,7 +4,7 @@ import { markets } from "@/services/company.service";
 
 export const metadata = pageMetadata(
   "Global Pharmaceutical Markets",
-  "Discover the international markets served by Shree Shyam International across Asia, Europe, the Middle East, Africa, and the Americas.",
+  "Discover the international markets served by Shree Shyam International across Asia, Europe,  Africa, and the Americas.",
   "/markets",
 );
 
@@ -15,7 +15,7 @@ export default function MarketsPage() {
       <PageHero
         eyebrow="Markets"
         title="International reach across multiple regions."
-        description="Our stated market list includes destinations across the Americas, Europe, the Middle East, Asia and Africa."
+        description="Our stated market list includes destinations across the Americas, Europe, Asia and Africa."
       />
       <section className="mx-auto max-w-7xl px-5 py-20 lg:px-8">
         <div className="space-y-16">
