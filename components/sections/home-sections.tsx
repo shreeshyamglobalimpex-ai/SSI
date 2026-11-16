@@ -16,12 +16,12 @@ import TestimonialsSection from "./TestimonialsSection";
 export function HomeSections() {
   return (
     <>
-      <section className="border-y border-slate-200 bg-slate-50">
-        <div className="mx-auto grid max-w-7xl grid-cols-2 gap-px bg-slate-200 md:grid-cols-4 lg:px-8">
-          <Stat value="50+" label="International markets" />
-          <Stat value="29+" label="Listed brands" />
-          <Stat value="2022" label="GST registration" />
-          <Stat value="India" label="Operating base" />
+      <section className="border-y border-slate-200">
+        <div className="mx-auto grid max-w-7xl grid-cols-2 gap-px md:grid-cols-4 lg:px-8">
+          <Stat value="India" label="India To USA, EU Delivery Available" />
+          <Stat value="USA" label="USA To USA Delivery Available" />
+          <Stat value="EU" label="EU To EU Delivery Available" />
+          <Stat value="6-7" label="Business Days" />
         </div>
       </section>
       <section className="mx-auto max-w-7xl px-5 py-24 lg:px-8">
@@ -69,7 +69,7 @@ export function HomeSections() {
             <SectionHeading
               eyebrow="Global markets"
               title="Built for international business"
-              description="Our supplied market list spans North America, Europe, the Middle East, Asia, Africa and other international destinations."
+              description="Our supplied market list spans North America, Europe, Asia, Africa and other international destinations."
             />
             <Link
               className="mt-8 inline-flex items-center text-sm font-medium text-emerald-300"
