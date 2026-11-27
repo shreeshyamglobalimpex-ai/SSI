@@ -16,13 +16,22 @@ export default function RootLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en">
+      <head>
+        <script
+          id="vtag-ai-js"
+          async
+          src="https://r2.leadsy.ai/tag.js"
+          data-pid="1hW4lIk7DFqzQMmyM"
+          data-version="062024"
+        ></script>
+        <script
+          id="vtag-ai-js"
+          async
+          src="https://r2.leadsy.ai/tag.js?pid=1hW4lIk7DFqzQMmyM&version=062024"
+        ></script>
+      </head>
       <body>
-        <Toaster
-          position="top-right"
-          richColors
-          closeButton
-          duration={4000}
-        />
+        <Toaster position="top-right" richColors closeButton duration={4000} />
         {children}
       </body>
     </html>
